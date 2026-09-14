@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAAB 340 — Load Sheet System</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  *{box-sizing:border-box;}
+  body{font-family:Arial,"Segoe UI",sans-serif;background:#eef1f5;padding:26px;margin:0;color:#2c3642;}
+  h2{margin:0 0 4px;} h3{margin:24px 0 10px;font-size:16px;color:#33404f;}
+  .sub{color:#66727f;font-size:13px;margin-bottom:16px;}
+
+  /* ---------- แท็บ ---------- */
+  .tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+  .tab{
+    padding:12px 26px;border:none;border-radius:10px;cursor:pointer;font-weight:800;font-size:14px;
+    color:#4c5a6b;background:linear-gradient(180deg,#fff 0%,#dfe5ec 100%);
+    box-shadow:0 4px 0 #b3bcc7,0 6px 10px rgba(0,0,0,.12);transition:.12s;
+  }
+  .tab.active{color:#fff;background:linear-gradient(180deg,#4a9bf0 0%,#1b64c4 100%);box-shadow:0 4px 0 #114a94;}
+  .tab:active{transform:translateY(3px);box-shadow:0 1px 0 #b3bcc7;}
+  .page{display:none;} .page.show{display:block;}
+
+  /* ---------- ปุ่มที่นั่ง ---------- */
+  table.seat{border-collapse:separate;border-spacing:6px;}
+  table.seat td{width:78px;height:42px;text-align:center;padding:0;}
+  table.seat td.label{width:112px;font-weight:700;color:#33404f;font-size:14px;}
+  .cell{
+    width:100%;height:42px;border:none;border-radius:8px;cursor:pointer;
+    font-size:16px;font-weight:800;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.35);
+    transition:transform .06s,box-shadow .06s,background .15s;
+    background:linear-gradient(180deg,#5fd47a 0%,#2faa50 100%);
+    box-shadow:0 5px 0 #1f7a39,0 7px 10px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.45);
+  }
+  .cell.on{
+    background:linear-gradient(180deg,#ff6b6b 0%,#d32020 100%);
+    box-shadow:0 5px 0 #96150f,0 7px 10px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .cell:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.35),inset 0 2px 4px rgba(0,0,0,.3);}
+  .tfis{
+    width:100%;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-weight:800;color:#3c4756;letter-spacing:1px;cursor:pointer;user-select:none;
+    background:linear-gradient(180deg,#fff 0%,#dfe5ec 100%);
+    box-shadow:0 5px 0 #b3bcc7,0 7px 10px rgba(0,0,0,.18),inset 0 1px 0 #fff;
+  }
+  .tfis.on{color:#fff;background:linear-gradient(180deg,#ff6b6b 0%,#d32020 100%);box-shadow:0 5px 0 #96150f;}
+  .val,select{
+    width:100%;height:42px;border:none;border-radius:8px;text-align:center;
+    font-size:16px;font-weight:800;color:#2c3642;
+    background:linear-gradient(180deg,#fff 0%,#e6ebf1 100%);
+    box-shadow:0 4px 0 #bcc5d0,inset 0 1px 0 #fff;outline:none;
+  }
+
+  /* ---------- แถบปุ่มคำสั่ง ---------- */
+  .bar{margin:20px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  .bar button{
+    padding:11px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:700;color:#fff;font-size:14px;
+    background:linear-gradient(180deg,#7a8a9c 0%,#4c5a6b 100%);
+    box-shadow:0 4px 0 #33404f,0 6px 8px rgba(0,0,0,.2);
+  }
+  .bar button:active{transform:translateY(3px);box-shadow:0 1px 0 #33404f;}
+  .go{background:linear-gradient(180deg,#4a9bf0 0%,#1b64c4 100%)!important;box-shadow:0 4px 0 #114a94!important;}
+  .xls{background:linear-gradient(180deg,#4bbf73 0%,#1d7a45 100%)!important;box-shadow:0 4px 0 #145c33!important;}
+
+  .chips{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;}
+  .chip{background:#fff;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;
+        box-shadow:0 2px 6px rgba(0,0,0,.1);}
+  .chip b{color:#1b64c4;}
+
+  /* ---------- ตาราง Load Sheet ---------- */
+  .wrap{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;}
+  table.ls{border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;
+           box-shadow:0 4px 14px rgba(0,0,0,.12);min-width:560px;}
+  table.ls th,table.ls td{padding:8px 12px;font-size:13px;border-bottom:1px solid #eef1f5;}
+  table.ls th{background:#3c4756;color:#fff;font-weight:700;text-align:center;}
+  table.ls td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
+  table.ls td.c{text-align:center;}
+  tr.grp td{background:#f3f6f9;font-weight:800;}
+  tr.tot td{background:#e8f0fb;font-weight:800;color:#12467f;border-top:2px solid #b7cbe6;}
+  tr.big td{background:#dff0e4;font-weight:800;color:#14663a;}
+  .idt{border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;
+       box-shadow:0 3px 10px rgba(0,0,0,.1);font-size:12px;}
+  .idt th,.idt td{border:1px solid #e5e9ee;padding:4px 10px;text-align:center;}
+  .idt th{background:#eef1f5;font-weight:700;}
+  .idt td.hit{background:#ffe9e9;color:#c62222;font-weight:800;}
+  .formula{background:#fff;border-left:5px solid #4a9bf0;padding:12px 16px;border-radius:8px;
+           font-size:13px;line-height:1.9;box-shadow:0 2px 8px rgba(0,0,0,.08);max-width:640px;}
+  code{background:#eef1f5;padding:2px 6px;border-radius:4px;font-size:12px;}
+  #msg{font-weight:700;color:#1b7a3c;}
+</style>
+</head>
+<body>
+
+<h2>SAAB 340 — Load Sheet System</h2>
+<div class="sub">เลือกที่นั่งในแท็บแรก → ผลคำนวณอัปเดตในแท็บที่สองทันที</div>
+
+<div class="tabs">
+  <button class="tab active" data-p="p1">🪑 Seat Selection</button>
+  <button class="tab" data-p="p2">📋 Load Sheet &amp; Calculation</button>
+</div>
+
+<!-- ============ หน้า 1 ============ -->
+<div class="page show" id="p1">
+<table class="seat">
+  <tr>
+    <td class="label">A/C Reg</td>
+    <td colspan="4">
+      <select id="acreg">
+        <option value="70204">70204</option>
+        <option value="70205">70205</option>
+        <option value="70206">70206</option>
+      </select>
+    </td>
+  </tr>
+  <tr>
+    <td class="label">OBSERVER</td><td></td>
+    <td><button class="cell" data-g="obs" data-v="1">1</button></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td class="label">FLIGHT ATT.</td>
+    <td><button class="cell" data-g="fa" data-v="2">2</button></td>
+    <td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td class="label">ROW</td>
+    <td><button class="cell" data-g="row" data-v="3">3</button></td><td></td>
+    <td><button class="cell" data-g="row" data-v="3">3</button></td>
+    <td><button class="cell" data-g="row" data-v="3">3</button></td>
+  </tr>
+  <tr>
+    <td class="label" rowspan="4">FWD</td>
+    <td><button class="cell" data-g="fwd" data-v="4">4</button></td><td></td>
+    <td colspan="2" rowspan="2"><div class="tfis" id="tfis">TFIS</div></td>
+  </tr>
+  <tr><td><button class="cell" data-g="fwd" data-v="4">4</button></td><td></td></tr>
+  <tr>
+    <td><button class="cell" data-g="fwd" data-v="4">4</button></td><td></td>
+    <td><button class="cell" data-g="fwd" data-v="4">4</button></td>
+    <td><button class="cell" data-g="fwd" data-v="4">4</button></td>
+  </tr>
+  <tr>
+    <td><button class="cell" data-g="fwd" data-v="4">4</button></td><td></td>
+    <td><button class="cell" data-g="fwd" data-v="4">4</button></td>
+    <td><button class="cell" data-g="fwd" data-v="4">4</button></td>
+  </tr>
+  <tr>
+    <td class="label" rowspan="6">AFT</td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td><td></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+  </tr>
+  <tr>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td><td></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+  </tr>
+  <tr>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td><td></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+  </tr>
+  <tr>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td><td></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+  </tr>
+  <tr>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td><td></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+  </tr>
+  <tr>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+    <td><button class="cell" data-g="aft" data-v="5">5</button></td>
+  </tr>
+  <tr><td class="label">C1</td><td colspan="4"><input class="val" id="c1" type="number" value="300"></td></tr>
+  <tr><td class="label">C2</td><td colspan="4"><input class="val" id="c2" type="number" value="100"></td></tr>
+  <tr><td class="label">Fuel</td><td colspan="4"><input class="val" id="fuel" type="number" value="4500"></td></tr>
+  <tr><td class="label">Trip Fuel</td><td colspan="4"><input class="val" id="trip" type="number" value="0"></td></tr>
+</table>
+
+<div class="chips" id="chips"></div>
+
+<div class="bar">
+  <button onclick="resetAll()">รีเซ็ต</button>
+  <button onclick="fillAll()">เลือกทั้งหมด</button>
+  <button class="go" onclick="go('p2')">📋 ดูผลคำนวณ →</button>
+</div>
+</div>
+
+<!-- ============ หน้า 2 ============ -->
+<div class="page" id="p2">
+<div class="bar">
+  <button onclick="go('p1')">← กลับหน้าปุ่ม</button>
+  <button onclick="calc()">🔄 คำนวณใหม่</button>
+  <button class="xls" onclick="exportExcel()">📗 บันทึกเป็น Excel</button>
+  <span id="msg"></span>
+</div>
+
+<div class="wrap">
+  <table class="ls" id="sheet"></table>
+  <div>
+    <h3 style="margin-top:0">Index Tables (Sheet2)</h3>
+    <div class="wrap" id="tables"></div>
+  </div>
+</div>
+
+<h3>สูตรที่ใช้</h3>
+<div class="formula">
+  <b>OW</b> = OEW + Crew + TFIS &nbsp;|&nbsp; <b>ZFW</b> = OW + Passenger + Cargo<br>
+  <b>TOW</b> = ZFW + Take-off Fuel &nbsp;|&nbsp; <b>LW</b> = TOW − Trip Fuel<br>
+  <b>Index</b> แต่ละรายการ = ค่าจากตาราง Sheet2 (ค้นตามจำนวน/น้ำหนัก)<br>
+  <b>%MAC</b> = <code>Index × 10000 ÷ Weight + 1.6</code><br>
+  น้ำหนักต่อหน่วย: Crew <code>187 lb</code> · Passenger <code>170 lb</code> · TFIS <code>61 lb</code>
+</div>
+</div>
+
+<script>
+/* ================= ตารางค่า Index (Sheet2) ================= */
+const T_CARGO = [[50,1,1],[100,2,3],[150,3,4],[200,4,5],[250,5,7],[300,7,8],[350,8,10],
+  [400,9,11],[450,10,12],[500,11,14],[550,12,15],[600,13,16],[650,14,null],[700,15,null],
+  [750,16,null],[800,17,null],[850,18,null],[900,20,null],[950,21,null],[1000,22,null],
+  [1050,23,null],[1100,24,null],[1150,25,null],[1200,26,null],[1250,27,null],[1300,28,null],
+  [1350,29,null],[1400,30,null],[1450,31,null],[1500,33,null]];
+const T_VIP  = {0:0,1:-2,2:-4,3:-7};
+const T_FWD  = {0:0,1:-1,2:-1,3:-2,4:-3,5:-3,6:-4,7:-5,8:-5};
+const T_AFT  = {0:0,1:2,2:3,3:5,4:7,5:8,6:10,7:12,8:13,9:15,10:17,11:19,12:20,13:22,
+                14:24,15:25,16:27,17:29,18:30,19:32};
+const T_OBS  = {0:0,1:-4};
+const T_FA   = {0:0,1:-3};
+const T_TFIS = {0:0,1:-1};
+const T_FUEL = [[2200,0],[4400,1],[5690,2]];
+const AC = { '70204':[19098,19,11.5], '70205':[19075,17,10.2], '70206':[19017,19,11.4] };
+
+const W_CREW = 187, W_PAX = 170, W_TFIS = 61;
+const MAC_C = 10000, MAC_K = 1.6;
+
+/* ================= แท็บ ================= */
+document.querySelectorAll('.tab').forEach(t =>
+  t.addEventListener('click', () => go(t.dataset.p)));
+
+function go(id){
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('show', p.id === id));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.p === id));
+  if (id === 'p2') calc();
+  window.scrollTo(0, 0);
+}
+
+/* ================= ปุ่ม ================= */
+const cells = [...document.querySelectorAll('.cell')];
+const tfis  = document.getElementById('tfis');
+
+cells.forEach((b,i) => {
+  b.dataset.id = b.dataset.g.toUpperCase() + '-' + (i+1);
+  b.addEventListener('click', () => { b.classList.toggle('on'); sync(); });
+});
+tfis.addEventListener('click', () => { tfis.classList.toggle('on'); sync(); });
+['c1','c2','fuel','trip','acreg'].forEach(id =>
+  document.getElementById(id).addEventListener('input', sync));
+
+function count(g){ return cells.filter(b => b.dataset.g === g && b.classList.contains('on')).length; }
+
+function state(){
+  return {
+    acreg: acreg.value,
+    obs: count('obs'), fa: count('fa'), row: count('row'),
+    fwd: count('fwd'), aft: count('aft'),
+    tfis: tfis.classList.contains('on') ? 1 : 0,
+    c1: +c1.value || 0, c2: +c2.value || 0,
+    fuel: +fuel.value || 0, trip: +trip.value || 0
+  };
+}
+
+function sync(){
+  const d = state(), pax = d.row + d.fwd + d.aft;
+  chips.innerHTML = `
+    <div class="chip">A/C <b>${d.acreg}</b></div>
+    <div class="chip">Observer <b>${d.obs}</b></div>
+    <div class="chip">Flight Att. <b>${d.fa}</b></div>
+    <div class="chip">ROW (VIP) <b>${d.row}</b>/3</div>
+    <div class="chip">FWD <b>${d.fwd}</b>/8</div>
+    <div class="chip">AFT <b>${d.aft}</b>/19</div>
+    <div class="chip">TFIS <b>${d.tfis ? 'ติดตั้ง' : '-'}</b></div>
+    <div class="chip">รวมผู้โดยสาร <b>${pax}</b> คน</div>`;
+  if (document.getElementById('p2').classList.contains('show')) calc();
+}
+function resetAll(){ cells.forEach(b=>b.classList.remove('on')); tfis.classList.remove('on'); sync(); }
+function fillAll(){ cells.forEach(b=>b.classList.add('on')); tfis.classList.add('on'); sync(); }
+
+/* ================= คำนวณ ================= */
+const look = (t,n) => t[Math.max(0, Math.min(n, Math.max(...Object.keys(t).map(Number))))] ?? 0;
+function cargoIdx(w, col){ if(!w) return 0; let v=0; for(const r of T_CARGO){ if(w>=r[0] && r[col]!==null) v=r[col]; } return v; }
+function fuelIdx(w){ for(const [lim,v] of T_FUEL) if(w<=lim) return v; return 2; }
+const pmac = (i,w) => w ? i*MAC_C/w + MAC_K : 0;
+const nf  = n => Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
+const nf1 = n => Number(n).toFixed(1);
+
+let R = {};
+
+function calc(){
+  const d = state();
+  const [oewW, oewI, oewM] = AC[d.acreg];
+
+  const obs = {q:d.obs, w:d.obs*W_CREW, i:look(T_OBS,d.obs)};
+  const fa  = {q:d.fa,  w:d.fa*W_CREW,  i:look(T_FA,d.fa)};
+  const cfw = {q:0,w:0,i:0}, caf = {q:0,w:0,i:0};
+  const tf  = {q:d.tfis, w:d.tfis*W_TFIS, i:look(T_TFIS,d.tfis)};
+
+  const owW = oewW+obs.w+fa.w+cfw.w+caf.w+tf.w;
+  const owI = oewI+obs.i+fa.i+cfw.i+caf.i+tf.i;
+
+  const vip = {q:d.row, w:d.row*W_PAX, i:look(T_VIP,d.row)};
+  const pfw = {q:d.fwd, w:d.fwd*W_PAX, i:look(T_FWD,d.fwd)};
+  const paf = {q:d.aft, w:d.aft*W_PAX, i:look(T_AFT,d.aft)};
+  const c1v = {w:d.c1, i:cargoIdx(d.c1,1)};
+  const c2v = {w:d.c2, i:cargoIdx(d.c2,2)};
+
+  const zfwW = owW+vip.w+pfw.w+paf.w+c1v.w+c2v.w;
+  const zfwI = owI+vip.i+pfw.i+paf.i+c1v.i+c2v.i;
+
+  const fu = {w:d.fuel, i:fuelIdx(d.fuel)};
+  const towW = zfwW+fu.w, towI = zfwI+fu.i;
+  const rem = {w: Math.max(fu.w-d.trip, 0)}; rem.i = fuelIdx(rem.w);
+  const lwW = towW-d.trip, lwI = zfwI+rem.i;
+
+  R = {reg:d.acreg,oewW,oewI,oewM,obs,fa,cfw,caf,tf,owW,owI,
+       vip,pfw,paf,c1:c1v,c2:c2v,zfwW,zfwI,fuel:fu,towW,towI,trip:d.trip,rem,lwW,lwI};
+  draw(); drawTables();
+}
+
+function draw(){
+  const row = (l,q,mul,w,i,m,cls='') =>
+    `<tr class="${cls}"><td>${l}</td><td class="c">${q ?? ''}</td><td class="c">${mul ?? ''}</td>` +
+    `<td class="n">${w===null?'':nf(w)}</td><td class="n">${i===null?'':Math.round(i)}</td>` +
+    `<td class="n">${m===null?'':nf1(m)}</td></tr>`;
+
+  sheet.innerHTML =
+    `<tr><th colspan="3">Component</th><th>Weight</th><th>Index</th><th>%MAC</th></tr>` +
+    row(`OEW — A/C ${R.reg}`,'','',R.oewW,R.oewI,R.oewM,'grp') +
+    row('Correction · observer',R.obs.q,'× 187',R.obs.w,R.obs.i,null) +
+    row('Correction · Flight Att.',R.fa.q,'× 187',R.fa.w,R.fa.i,null) +
+    row('Correction · Crew FWD',R.cfw.q,'× 170',R.cfw.w,R.cfw.i,null) +
+    row('Correction · Crew AFT',R.caf.q,'× 170',R.caf.w,R.caf.i,null) +
+    row('WITH TFIS',R.tf.q,'× 61',R.tf.w,R.tf.i,null) +
+    row('OW','','',R.owW,R.owI,pmac(R.owI,R.owW),'tot') +
+    row('Passenger · VIP row 1',R.vip.q,'× 170',R.vip.w,R.vip.i,null) +
+    row('Passenger · FWD (2-5)',R.pfw.q,'× 170',R.pfw.w,R.pfw.i,null) +
+    row('Passenger · AFT (6-11)',R.paf.q,'× 170',R.paf.w,R.paf.i,null) +
+    row('Cargo · Comp 1 (max 1,500 lb.)','','',R.c1.w,R.c1.i,null) +
+    row('Cargo · Comp 2 (max 600 lb.)','','',R.c2.w,R.c2.i,null) +
+    row('Zero Fuel Weight (ZFW)','','',R.zfwW,R.zfwI,pmac(R.zfwI,R.zfwW),'tot') +
+    row('Take-off Fuel','','',R.fuel.w,R.fuel.i,null) +
+    row('Take-off Weight (TOW)','','',R.towW,R.towI,pmac(R.towI,R.towW),'big') +
+    row('Trip Fuel','','',R.trip,null,null) +
+    row('Fuel Remain','','',R.rem.w,R.rem.i,null) +
+    row('Landing Weight (LW)','','',R.lwW,R.lwI,pmac(R.lwI,R.lwW),'big');
+}
+
+function drawTables(){
+  const mk = (title,head,rows,hit) =>
+    `<table class="idt"><tr><th colspan="${head.length}">${title}</th></tr>` +
+    `<tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr>` +
+    rows.map(r=>`<tr>${r.map(c=>`<td class="${r[0]==hit?'hit':''}">${c===null?'':c}</td>`).join('')}</tr>`).join('') +
+    `</table>`;
+
+  const cargoRows = T_CARGO.map(r=>[r[0],r[1],r[2]]);
+  const paxRows   = Object.keys(T_FWD).filter(k=>k>0).map(k=>[k,T_FWD[k],T_AFT[k] ?? '']);
+  const vipRows   = [[1,-2],[2,-4],[3,-7]];
+  const fuelRows  = [['0-2200',0],['2201-4400',1],['4401-5690',2]];
+  const miscRows  = [['Observer 1',-4],['Flight ATT. 1',-3],['With TFIS 1',-1]];
+
+  tables.innerHTML =
+    mk('Cargo',['weight','C1 index','C2 index'],cargoRows,R.c1.w) +
+    mk('Passenger FWD / AFT',['Px','FWD','AFT'],paxRows,R.pfw.q) +
+    mk('VIP row 1',['Px','index'],vipRows,R.vip.q) +
+    mk('Fuel',['lb.','index'],fuelRows,null) +
+    mk('Correction',['item','index'],miscRows,null);
+}
+
+/* ================= Export Excel ================= */
+function exportExcel(){
+  const a = [
+    ['Direct Calculation of Aircraft Loading'],
+    ['A/C Reg', R.reg],
+    [],
+    ['Component','Qty','Factor','Weight','Index','%MAC'],
+    ['OEW','','',R.oewW,R.oewI,R.oewM],
+    ['Correction · observer',R.obs.q,187,R.obs.w,R.obs.i,''],
+    ['Correction · Flight Att.',R.fa.q,187,R.fa.w,R.fa.i,''],
+    ['Correction · Crew FWD',R.cfw.q,170,R.cfw.w,R.cfw.i,''],
+    ['Correction · Crew AFT',R.caf.q,170,R.caf.w,R.caf.i,''],
+    ['WITH TFIS',R.tf.q,61,R.tf.w,R.tf.i,''],
+    ['OW','','',R.owW,R.owI,+pmac(R.owI,R.owW).toFixed(1)],
+    ['Passenger · VIP row 1',R.vip.q,170,R.vip.w,R.vip.i,''],
+    ['Passenger · FWD (2-5)',R.pfw.q,170,R.pfw.w,R.pfw.i,''],
+    ['Passenger · AFT (6-11)',R.paf.q,170,R.paf.w,R.paf.i,''],
+    ['Cargo · Comp 1','','',R.c1.w,R.c1.i,''],
+    ['Cargo · Comp 2','','',R.c2.w,R.c2.i,''],
+    ['Zero Fuel Weight (ZFW)','','',R.zfwW,R.zfwI,+pmac(R.zfwI,R.zfwW).toFixed(1)],
+    ['Take-off Fuel','','',R.fuel.w,R.fuel.i,''],
+    ['Take-off Weight (TOW)','','',R.towW,R.towI,+pmac(R.towI,R.towW).toFixed(1)],
+    ['Trip Fuel','','',R.trip,'',''],
+    ['Fuel Remain','','',R.rem.w,R.rem.i,''],
+    ['Landing Weight (LW)','','',R.lwW,R.lwI,+pmac(R.lwI,R.lwW).toFixed(1)],
+    [],
+    ['%MAC = Index × 10000 / Weight + 1.6']
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(a);
+  ws1['!cols'] = [{wch:30},{wch:7},{wch:8},{wch:11},{wch:8},{wch:8}];
+
+  const b = [['cargo','',''],['weight','C1 index','C2 index']];
+  T_CARGO.forEach(r => b.push([r[0], r[1], r[2] ?? '']));
+  const ws2 = XLSX.utils.aoa_to_sheet(b);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws1, 'Sheet1');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Sheet2');
+
+  const t = new Date();
+  XLSX.writeFile(wb, 'SAAB_LoadSheet_' + t.toISOString().slice(0,10) + '_' +
+    String(t.getHours()).padStart(2,'0') + String(t.getMinutes()).padStart(2,'0') + '.xlsx');
+  msg.textContent = '✅ บันทึกไฟล์แล้ว';
+  setTimeout(() => msg.textContent = '', 3000);
+}
+
+sync();
+</script>
+</body>
+</html>
